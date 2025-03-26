@@ -10,7 +10,8 @@ use ark_std::{One, Zero};
 use std::ops::Div;
 
 use crate::{
-    encryption::Ciphertext,
+    encryption::{Ciphertext, cipher},
+
     kzg::{PowersOfTau, KZG10},
     setup::AggregateKey,
     utils::interp_mostly_zero,
@@ -146,6 +147,15 @@ pub fn agg_dec<E: Pairing>(
 
     enc_key
 }
+fn decrypt<E: Pairing>(ct_i: &cipher<E>, partial_decryptions: &[E::G2], //insert 0 if a party did not respond or verification failed
+    ct: &Ciphertext<E>,
+    selector: &[bool],
+    agg_key: &AggregateKey<E>,
+    params: &PowersOfTau<E>, )-> PairingOutput<E> {
+        let enc_key = agg_dec(partial_decryptions, ct, selector, agg_key, params);
+        let msg_out = ct_i.ct3 - enc_key;
+        msg_out
+    }
 
 #[cfg(test)]
 mod tests {

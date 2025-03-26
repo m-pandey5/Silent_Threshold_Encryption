@@ -91,6 +91,96 @@ pub fn encrypt<E: Pairing>(
         t,
     }
 }
+pub struct cipher<E: Pairing> {
+    pub gamma_g2: E::G2,
+    pub sa1: [E::G1; 2],
+    pub sa2: [E::G2; 6],
+    // pub enc_key: PairingOutput<E>, //key to be used for encapsulation
+    // pub t: usize, 
+   pub ct3:  PairingOutput<E>              //threshold
+}
+
+impl<E: Pairing> cipher<E> {
+    pub fn new(
+        gamma_g2: E::G2,
+        sa1: [E::G1; 2],
+        sa2: [E::G2; 6],
+        // enc_key: PairingOutput<E>,
+        // t: usize,
+        ct3:  PairingOutput<E>
+    ) -> Self {
+       cipher {
+            gamma_g2,
+            sa1,
+            sa2,
+            // enc_key,
+            // t,
+            ct3
+        }
+    }
+}
+
+/// t is the threshold for encryption and apk is the aggregated public key
+/// ct3= s.b+msg 
+/// ct3 = s4*e_gh + msg
+pub fn encrypt1<E: Pairing>(
+    apk: &AggregateKey<E>,
+    t: usize,
+    params: &PowersOfTau<E>,
+    msg: E::ScalarField
+) -> cipher<E> {
+    let mut rng = ark_std::test_rng();
+    let gamma = E::ScalarField::rand(&mut rng);
+    let gamma_g2 = params.powers_of_h[0] * gamma;
+
+    let g = params.powers_of_g[0];
+    let h = params.powers_of_h[0];
+
+    let mut sa1 = [E::G1::generator(); 2];
+    let mut sa2 = [E::G2::generator(); 6];
+
+    let mut s: [E::ScalarField; 5] = [E::ScalarField::zero(); 5];
+
+    s.iter_mut()
+        .for_each(|s| *s = E::ScalarField::rand(&mut rng));
+
+    // sa1[0] = s0*ask + s3*g^{tau^{t+1}} + s4*g
+    sa1[0] = (apk.ask * s[0]) + (params.powers_of_g[t + 1] * s[3]) + (params.powers_of_g[0] * s[4]);
+
+    // sa1[1] = s2*g
+    sa1[1] = g * s[2];
+
+    // sa2[0] = s0*h + s2*gamma_g2
+    sa2[0] = (h * s[0]) + (gamma_g2 * s[2]);
+
+    // sa2[1] = s0*z_g2
+    sa2[1] = apk.z_g2 * s[0];
+
+    // sa2[2] = s0*h^tau + s1*h^tau
+    sa2[2] = params.powers_of_h[1] * (s[0] + s[1]);
+
+    // sa2[3] = s1*h
+    sa2[3] = h * s[1];
+
+    // sa2[4] = s3*h
+    sa2[4] = h * s[3];
+
+    // sa2[5] = s4*h^{tau - omega^0}
+    sa2[5] = (params.powers_of_h[1] + apk.h_minus1) * s[4];
+
+    // enc_key = s4*e_gh
+    let enc_key = apk.e_gh.mul(s[4]);
+    //converting the msg into Gt element 
+    let msg_out = apk.e_gh.mul(msg);
+    let ct3 =enc_key + msg_out;
+
+   cipher {
+        gamma_g2,
+        sa1,
+        sa2,
+       ct3
+    }
+}
 
 #[cfg(test)]
 mod tests {
