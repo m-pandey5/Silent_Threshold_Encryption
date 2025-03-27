@@ -240,7 +240,7 @@ impl<E: Pairing> AggregateKey<E> {
             ask,
             z_g2,
             h_minus1,
-            e_gh: E::pairing(params.powers_of_g[0], params.powers_of_h[0]),
+            e_gh: E::pairing(params.powers_of_g[0], params.powers_of_h[0]),//  this is the pairing  of g with h
         }
     }
 }

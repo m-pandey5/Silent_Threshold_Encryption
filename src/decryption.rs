@@ -147,7 +147,7 @@ pub fn agg_dec<E: Pairing>(
 
     enc_key
 }
-fn decrypt<E: Pairing>(ct_i: &cipher<E>, partial_decryptions: &[E::G2], //insert 0 if a party did not respond or verification failed
+pub fn decrypt<E: Pairing>(ct_i: &cipher<E>, partial_decryptions: &[E::G2], //insert 0 if a party did not respond or verification failed
     ct: &Ciphertext<E>,
     selector: &[bool],
     agg_key: &AggregateKey<E>,
@@ -219,4 +219,6 @@ mod tests {
 
         let _dec_key = agg_dec(&partial_decryptions, &ct, &selector, &agg_key, &params);
     }
+ 
+   
 }
