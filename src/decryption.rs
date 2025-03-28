@@ -25,6 +25,7 @@ pub fn agg_dec<E: Pairing>(
     params: &PowersOfTau<E>,
 ) -> PairingOutput<E> {
     let n = agg_key.pk.len();
+   
     let domain = Radix2EvaluationDomain::<E::ScalarField>::new(n).unwrap();
     let domain_elements: Vec<E::ScalarField> = domain.elements().collect();
 
@@ -42,9 +43,12 @@ pub fn agg_dec<E: Pairing>(
 
     let b = interp_mostly_zero(E::ScalarField::one(), &points);
     let b_evals = domain.fft(&b.coeffs);
+    println!("fuck u");
 
     debug_assert!(b.degree() == points.len() - 1);
+    println!("fuck u");
     debug_assert!(b.evaluate(&domain_elements[0]) == E::ScalarField::one());
+    println!("fuck u");
 
     // commit to b in g2
     let b_g2: E::G2 = KZG10::<E, DensePolynomial<E::ScalarField>>::commit_g2(params, &b)
@@ -56,6 +60,7 @@ pub fn agg_dec<E: Pairing>(
     bminus1.coeffs[0] -= E::ScalarField::one();
 
     debug_assert!(bminus1.evaluate(&domain_elements[0]) == E::ScalarField::zero());
+    println!("fuck u");
 
     let xminus1 =
         DensePolynomial::from_coefficients_vec(vec![-domain_elements[0], E::ScalarField::one()]);
@@ -68,9 +73,13 @@ pub fn agg_dec<E: Pairing>(
     // bhat = x^{t+1} * b
     // insert t+1 0s at the beginning of bhat.coeffs
     let mut bhat_coeffs = vec![E::ScalarField::zero(); ct.t + 1];
+    
+  
     bhat_coeffs.append(&mut b.coeffs.clone());
     let bhat = DensePolynomial::from_coefficients_vec(bhat_coeffs);
-    debug_assert_eq!(bhat.degree(), n);
+    
+    debug_assert_eq!(bhat.degree(), n);// problem 
+   
 
     let bhat_g1: E::G1 = KZG10::<E, DensePolynomial<E::ScalarField>>::commit_g1(params, &bhat)
         .unwrap()
@@ -142,10 +151,9 @@ pub fn agg_dec<E: Pairing>(
     enc_key_rhs.append(&mut w2.to_vec());
 
     let enc_key = E::multi_pairing(enc_key_lhs, enc_key_rhs);
-
-    assert_eq!(enc_key, ct.enc_key);
-
-    enc_key
+   assert_eq!(enc_key, ct.enc_key);
+   println!("fuck u");
+   enc_key
 }
 pub fn decrypt<E: Pairing>(ct_i: &cipher<E>, partial_decryptions: &[E::G2], //insert 0 if a party did not respond or verification failed
     ct: &Ciphertext<E>,

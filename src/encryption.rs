@@ -83,6 +83,7 @@ pub fn encrypt<E: Pairing>(
     // enc_key = s4*e_gh
     let enc_key = apk.e_gh.mul(s[4]);
 
+
     Ciphertext {
         gamma_g2,
         sa1,
@@ -170,7 +171,7 @@ pub fn encrypt1<E: Pairing>(
     sa2[5] = (params.powers_of_h[1] + apk.h_minus1) * s[4];
 
     // enc_key = s4*e_gh CT3= S.B+MSG -> S4+MSG
-    let enc_key = apk.e_gh.mul(s[4]);// do we have to writ here apk and why?
+    let enc_key = apk.e_gh.mul(s[4]);
     //converting the msg into Gt element 
     let msg_out = apk.e_gh.mul(msg);
     let ct3 =enc_key + msg_out;
@@ -187,7 +188,7 @@ pub fn encrypt1<E: Pairing>(
 mod tests {
     use super::*;
     use crate::{
-        decryption::decrypt, kzg::KZG10, setup::{PublicKey, SecretKey}
+        decryption::{decrypt,agg_dec}, kzg::KZG10, setup::{PublicKey, SecretKey}
     };
     use ark_poly::univariate::DensePolynomial;
     use ark_std::UniformRand;
@@ -213,7 +214,7 @@ mod tests {
             pk.push(sk[i].get_pk(0, &params, n))
         }
 
-        let ak = AggregateKey::<E>::new(pk, &params);
+        let ak = AggregateKey::<E>::new(pk, &params);// aggreate key
         let ct = encrypt::<E>(&ak, 2, &params);
 
         let mut ct_bytes = Vec::new();
@@ -239,26 +240,35 @@ mod tests {
 
     fn test_encrypt1(){
         let mut rng = ark_std::test_rng();
-        let n = 8;
+        let N = 1<<4;
+        let t =N/2;
         let tau = Fr::rand(&mut rng);
-        let params = KZG10::<E, UniPoly381>::setup(n, tau.clone()).unwrap();
+        let params = KZG10::<E, UniPoly381>::setup(N, tau.clone()).unwrap();
 
         let mut sk: Vec<SecretKey<E>> = Vec::new();
         let mut pk: Vec<PublicKey<E>> = Vec::new();
+        sk.push(SecretKey::<E>::new(&mut rng));
+        sk[0].nullify();
+        pk.push(sk[0].get_pk(0, &params, N));
 
-        for i in 0..n {
+        for i in 1..N{
             sk.push(SecretKey::<E>::new(&mut rng));
-            pk.push(sk[i].get_pk(0, &params, n))
+            pk.push(sk[i].get_pk(0, &params, N))
         }
 
         let ak = AggregateKey::<E>::new(pk, &params);
+        let ct_i = encrypt::<E>(&ak, t, &params);
         // implementing the new encryption function
+        let mut ct_i_bytes = Vec::new();
+        ct_i.serialize_compressed(&mut ct_i_bytes).unwrap();
+        println!("Compressed ciphertext: {} bytes", ct_i_bytes.len());
+
         let msg = Fr::rand(&mut rng);
         println!{"msg:{}",msg};
-        let ct = encrypt1::<E>(&ak, 2, &params,msg);
+        let ct = encrypt1::<E>(&ak, t, &params,msg);
          let mut ct_bytes = Vec::new();
         ct.serialize_compressed(&mut ct_bytes).unwrap();
-        println!("Compressed ciphertext: {} bytes", ct_bytes.len());
+        println!("Compressed cipher: {} bytes", ct_bytes.len());
 
         let mut g1_bytes = Vec::new();
         let mut g2_bytes = Vec::new();
@@ -275,7 +285,27 @@ mod tests {
         println!("G2 len: {} bytes", g2_bytes.len());
         println!("GT len: {} bytes", e_gh_bytes.len());
         // have to put the parameter of the decrypt function and also have to convert the msg_out from Gt to a scalar field
-        // let msg_out = decrypt(ct_i, partial_decryptions, ct, selector, agg_key, params);
+        // need to check the partial decryption function
+        let mut partial_decryptions: Vec<G2> = Vec::new();
+        for i in 0..t + 1 {
+            partial_decryptions.push(sk[i].partial_decryption(&ct_i));
+        }
+        for _ in t + 1..N {
+            partial_decryptions.push(G2::zero());
+        }
+
+        // compute the decryption key
+        let mut selector: Vec<bool> = Vec::new();
+        for _ in 0..t + 1 {
+            selector.push(true);
+        }
+        for _ in t + 1..N {
+            selector.push(false);
+        }
+        println!("partial_decryptions:{:?}",partial_decryptions);
+        let dec_key = agg_dec(&partial_decryptions, &ct_i, &selector, &ak, &params);
+        // let msg_out = decrypt( &ct, &partial_decryptions, &ct_i,&selector, &ak, &params);
+        // println!("msg_out:{}",msg_out);
 
 
     }
