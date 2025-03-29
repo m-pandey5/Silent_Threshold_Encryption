@@ -4,7 +4,7 @@ use ark_std::{UniformRand, Zero};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use silent_threshold_encryption::{
     decryption::agg_dec,
-    encryption::encrypt,
+    encryption::{encrypt,encrypt1},
     kzg::KZG10,
     setup::{AggregateKey, LagrangePowers, PublicKey, SecretKey},
 };
@@ -41,11 +41,14 @@ fn bench_decrypt(c: &mut Criterion) {
 
         let agg_key = AggregateKey::<E>::new(pk, &params);
         let ct = encrypt::<E>(&agg_key, t, &params);
+        let msg = Fr::rand(&mut rng);
+        
+        let ct_i=encrypt1::<E>(&agg_key, t, &params,msg);
 
         // compute partial decryptions
         let mut partial_decryptions: Vec<G2> = Vec::new();
         for i in 0..t + 1 {
-            partial_decryptions.push(sk[i].partial_decryption(&ct));
+            partial_decryptions.push(sk[i].partial_decryption(&ct_i));
         }
         for _ in t + 1..n {
             partial_decryptions.push(G2::zero());
@@ -62,7 +65,7 @@ fn bench_decrypt(c: &mut Criterion) {
 
         group.bench_with_input(
             BenchmarkId::from_parameter(n),
-            &(partial_decryptions, ct, selector, agg_key, params),
+            &(partial_decryptions, ct_i, selector, agg_key, params),
             |b, inp| {
                 b.iter(|| agg_dec(&inp.0, &inp.1, &inp.2, &inp.3, &inp.4));
             },

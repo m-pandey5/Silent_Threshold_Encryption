@@ -3,7 +3,7 @@ use ark_poly::univariate::DensePolynomial;
 use ark_std::UniformRand;
 use criterion::{criterion_group, criterion_main, Criterion};
 use silent_threshold_encryption::{
-    encryption::encrypt,
+    encryption::encrypt1,
     kzg::KZG10,
     setup::{AggregateKey, PublicKey, SecretKey},
 };
@@ -28,8 +28,9 @@ fn bench_encrypt(c: &mut Criterion) {
     }
 
     let ak = AggregateKey::<E>::new(pk, &params);
+    let msg = Fr::rand(&mut rng);
 
-    c.bench_function("encrypt", |b| b.iter(|| encrypt::<E>(&ak, t, &params)));
+    c.bench_function("encrypt", |b| b.iter(|| encrypt1::<E>(&ak, t, &params,msg)));
 }
 
 criterion_group!(benches, bench_encrypt);

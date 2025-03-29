@@ -1,4 +1,6 @@
 use std::ops::Mul;
+use rand::thread_rng;
+use ark_std::rand::Rng;
 
 use crate::{kzg::PowersOfTau, setup::AggregateKey};
 use ark_ec::{
@@ -41,8 +43,10 @@ pub fn encrypt<E: Pairing>(
     t: usize,
     params: &PowersOfTau<E>,
 ) -> Ciphertext<E> {
+    // let mut rng = thread_rng();// fail because different random value for each call
     let mut rng = ark_std::test_rng();
     let gamma = E::ScalarField::rand(&mut rng);
+    println!("GAMMA OF CIPHERTEXT: {}", gamma);
     let gamma_g2 = params.powers_of_h[0] * gamma;
 
     let g = params.powers_of_g[0];
@@ -55,6 +59,8 @@ pub fn encrypt<E: Pairing>(
 
     s.iter_mut()
         .for_each(|s| *s = E::ScalarField::rand(&mut rng));
+    for i in 0..s.len(){
+    println!("s of ciphertext {}", s[i]);}
 
     // sa1[0] = s0*ask->C + s3*g^{tau^{t+1}} + s4*g// is it t or t+1
     sa1[0] = (apk.ask * s[0]) + (params.powers_of_g[t + 1] * s[3]) + (params.powers_of_g[0] * s[4]);
@@ -99,7 +105,9 @@ pub struct cipher<E: Pairing> {
     pub sa2: [E::G2; 6],
     // pub enc_key: PairingOutput<E>, //key to be used for encapsulation
     // pub t: usize,
-    pub ct3: PairingOutput<E>, //threshold
+    pub ct3: PairingOutput<E>,
+    pub enc_key: PairingOutput<E>,
+    pub t: usize //threshold
 }
 
 impl<E: Pairing> cipher<E> {
@@ -110,14 +118,16 @@ impl<E: Pairing> cipher<E> {
         // enc_key: PairingOutput<E>,
         // t: usize,
         ct3: PairingOutput<E>,
+        enc_key: PairingOutput<E>,
+        t: usize //threshold
     ) -> Self {
         cipher {
             gamma_g2,
             sa1,
             sa2,
-            // enc_key,
-            // t,
             ct3,
+            enc_key,
+            t
         }
     }
 }
@@ -133,6 +143,7 @@ pub fn encrypt1<E: Pairing>(
 ) -> cipher<E> {
     let mut rng = ark_std::test_rng();
     let gamma = E::ScalarField::rand(&mut rng);
+    println!("GAMMA OF CIPHER: {}", gamma);
     let gamma_g2 = params.powers_of_h[0] * gamma;
 
     let g = params.powers_of_g[0];
@@ -145,6 +156,8 @@ pub fn encrypt1<E: Pairing>(
 
     s.iter_mut()
         .for_each(|s| *s = E::ScalarField::rand(&mut rng));
+    for i in 0..s.len(){
+        println!("s of cipher {}", s[i]);}
 
     // sa1[0] = s0*ask + s3*g^{tau^{t+1}} + s4*g// todo is there t or t+1
     sa1[0] = (apk.ask * s[0]) + (params.powers_of_g[t + 1] * s[3]) + (params.powers_of_g[0] * s[4]);
@@ -181,6 +194,8 @@ pub fn encrypt1<E: Pairing>(
         sa1,
         sa2,
         ct3,
+        enc_key,
+        t
     }
 }
 
@@ -264,13 +279,13 @@ mod tests {
         let agg_key = AggregateKey::<E>::new(pk, &params);
         let msg = Fr::rand(&mut rng);
         let msg_in = agg_key.e_gh.mul(msg);
-        let ct = encrypt::<E>(&agg_key, t, &params);
+        // let ct = encrypt::<E>(&agg_key, t, &params);
         let ct_i = encrypt1(&agg_key, t, &params, msg);
 
         // compute partial decryptions
         let mut partial_decryptions: Vec<G2> = Vec::new();
         for i in 0..t + 1 {
-            partial_decryptions.push(sk[i].partial_decryption(&ct));
+            partial_decryptions.push(sk[i].partial_decryption(&ct_i));
         }
         for _ in t + 1..n {
             partial_decryptions.push(G2::zero());
@@ -285,11 +300,10 @@ mod tests {
             selector.push(false);
         }
 
-        let _dec_key = agg_dec(&partial_decryptions, &ct, &selector, &agg_key, &params);
+        let _dec_key = agg_dec(&partial_decryptions, &ct_i, &selector, &agg_key, &params);
         let msg_out = decrypt(
             &ct_i,
             &partial_decryptions,
-            &ct,
             &selector,
             &agg_key,
             &params,

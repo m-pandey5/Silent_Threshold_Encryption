@@ -3,7 +3,7 @@ use ark_poly::univariate::DensePolynomial;
 use ark_std::{UniformRand, Zero};
 use silent_threshold_encryption::{
     decryption::agg_dec,
-    encryption::encrypt,
+    encryption::{encrypt,encrypt1},
     kzg::KZG10,
     setup::{AggregateKey, LagrangePowers, PublicKey, SecretKey},
 };
@@ -54,16 +54,19 @@ fn main() {
     let signers = (1..n).choose_multiple(&mut rng, t);
 
     let mut selector: Vec<bool> = vec![false; n];
+    let msg = Fr::rand(&mut rng);
+        
+    let ct_i = encrypt1::<E>(&agg_key, t, &kzg_params,msg);
     let mut partial_decryptions: Vec<G2> = vec![G2::zero(); n];
     selector[0] = true;
-    partial_decryptions[0] = sk[0].partial_decryption(&ct);
+    partial_decryptions[0] = sk[0].partial_decryption(&ct_i);
     for i in signers {
         selector[i] = true;
-        partial_decryptions[i] = sk[i].partial_decryption(&ct);
+        partial_decryptions[i] = sk[i].partial_decryption(&ct_i);
     }
 
     println!("Aggregating partial decryptions and decrypting");
-    let dec_key = agg_dec(&partial_decryptions, &ct, &selector, &agg_key, &kzg_params);
+    let dec_key = agg_dec(&partial_decryptions, &ct_i, &selector, &agg_key, &kzg_params);
     assert_eq!(dec_key, ct.enc_key, "Decryption failed!");
     println!("Decryption successful!");
 }

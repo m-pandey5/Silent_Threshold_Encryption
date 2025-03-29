@@ -1,6 +1,6 @@
 use ark_ec::pairing::PairingOutput;
 // use crate::utils::{lagrange_coefficients, transpose};
-use crate::encryption::Ciphertext;
+use crate::encryption::{Ciphertext, cipher};
 use crate::kzg::{PowersOfTau, KZG10};
 use crate::utils::lagrange_poly;
 use ark_ec::{pairing::Pairing, PrimeGroup};
@@ -207,8 +207,8 @@ impl<E: Pairing> SecretKey<E> {
             sk_li_x,
         }
     }
-
-    pub fn partial_decryption(&self, ct: &Ciphertext<E>) -> E::G2 {
+// change ciphertext to cipher
+    pub fn partial_decryption(&self, ct: &cipher<E>) -> E::G2 {
         ct.gamma_g2 * self.sk // kind of a bls signature on gamma_g2
     }
 }
