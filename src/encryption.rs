@@ -83,23 +83,23 @@ pub fn encrypt<E: Pairing>(
     // enc_key = s4*e_gh
     let enc_key = apk.e_gh.mul(s[4]);
 
-
     Ciphertext {
         gamma_g2,
         sa1,
         sa2,
-        enc_key,//CT3
+        enc_key, //CT3
         t,
     }
 }
 
-#[derive(CanonicalSerialize, CanonicalDeserialize, Clone)]pub struct cipher<E: Pairing> {
+#[derive(CanonicalSerialize, CanonicalDeserialize, Clone)]
+pub struct cipher<E: Pairing> {
     pub gamma_g2: E::G2,
     pub sa1: [E::G1; 2],
     pub sa2: [E::G2; 6],
     // pub enc_key: PairingOutput<E>, //key to be used for encapsulation
-    // pub t: usize, 
-   pub ct3:  PairingOutput<E>              //threshold
+    // pub t: usize,
+    pub ct3: PairingOutput<E>, //threshold
 }
 
 impl<E: Pairing> cipher<E> {
@@ -109,27 +109,27 @@ impl<E: Pairing> cipher<E> {
         sa2: [E::G2; 6],
         // enc_key: PairingOutput<E>,
         // t: usize,
-        ct3:  PairingOutput<E>
+        ct3: PairingOutput<E>,
     ) -> Self {
-       cipher {
+        cipher {
             gamma_g2,
             sa1,
             sa2,
             // enc_key,
             // t,
-            ct3
+            ct3,
         }
     }
 }
 
 /// t is the threshold for encryption and apk is the aggregated public key
-/// ct3= s.b+msg 
+/// ct3= s.b+msg
 /// ct3 = s4*e_gh + msg
 pub fn encrypt1<E: Pairing>(
     apk: &AggregateKey<E>,
     t: usize,
     params: &PowersOfTau<E>,
-    msg: E::ScalarField
+    msg: E::ScalarField,
 ) -> cipher<E> {
     let mut rng = ark_std::test_rng();
     let gamma = E::ScalarField::rand(&mut rng);
@@ -172,15 +172,15 @@ pub fn encrypt1<E: Pairing>(
 
     // enc_key = s4*e_gh CT3= S.B+MSG -> S4+MSG
     let enc_key = apk.e_gh.mul(s[4]);
-    //converting the msg into Gt element 
+    //converting the msg into Gt element
     let msg_out = apk.e_gh.mul(msg);
-    let ct3 =enc_key + msg_out;
-    println!("msg_out:{}",msg_out);
+    let ct3 = enc_key + msg_out;
+    println!("msg_out:{}", msg_out);
     cipher {
         gamma_g2,
         sa1,
         sa2,
-       ct3
+        ct3,
     }
 }
 
@@ -188,7 +188,9 @@ pub fn encrypt1<E: Pairing>(
 mod tests {
     use super::*;
     use crate::{
-        decryption::{decrypt,agg_dec}, kzg::KZG10, setup::{PublicKey, SecretKey}
+        decryption::{agg_dec, decrypt},
+        kzg::KZG10,
+        setup::{PublicKey, SecretKey},
     };
     use ark_poly::univariate::DensePolynomial;
     use ark_std::UniformRand;
@@ -214,7 +216,7 @@ mod tests {
             pk.push(sk[i].get_pk(0, &params, n))
         }
 
-        let ak = AggregateKey::<E>::new(pk, &params);// aggreate key
+        let ak = AggregateKey::<E>::new(pk, &params); // aggreate key
         let ct = encrypt::<E>(&ak, 2, &params);
 
         let mut ct_bytes = Vec::new();
@@ -236,61 +238,41 @@ mod tests {
         println!("G2 len: {} bytes", g2_bytes.len());
         println!("GT len: {} bytes", e_gh_bytes.len());
     }
-     #[test]
-
-    fn test_encrypt1(){
+    #[test]
+    fn test_encrypt1() {
         let mut rng = ark_std::test_rng();
-        let N = 1<<4;
-        let t =N/2;
+        let n = 1 << 4; // actually n-1 total parties. one party is a dummy party that is always true
+        let t: usize = n / 2;
+        debug_assert!(t < n);
+
         let tau = Fr::rand(&mut rng);
-        let params = KZG10::<E, UniPoly381>::setup(N, tau.clone()).unwrap();
+        let params = KZG10::<E, UniPoly381>::setup(n, tau.clone()).unwrap();
 
         let mut sk: Vec<SecretKey<E>> = Vec::new();
         let mut pk: Vec<PublicKey<E>> = Vec::new();
+
+        // create the dummy party's keys
         sk.push(SecretKey::<E>::new(&mut rng));
         sk[0].nullify();
-        pk.push(sk[0].get_pk(0, &params, N));
+        pk.push(sk[0].get_pk(0, &params, n));
 
-        for i in 1..N{
+        for i in 1..n {
             sk.push(SecretKey::<E>::new(&mut rng));
-            pk.push(sk[i].get_pk(0, &params, N))
+            pk.push(sk[i].get_pk(i, &params, n))
         }
 
-        let ak = AggregateKey::<E>::new(pk, &params);
-        let ct_i = encrypt::<E>(&ak, t, &params);
-        // implementing the new encryption function
-        let mut ct_i_bytes = Vec::new();
-        ct_i.serialize_compressed(&mut ct_i_bytes).unwrap();
-        println!("Compressed ciphertext: {} bytes", ct_i_bytes.len());
-
+        let agg_key = AggregateKey::<E>::new(pk, &params);
         let msg = Fr::rand(&mut rng);
-        println!{"msg:{}",msg};
-        let ct = encrypt1::<E>(&ak, t, &params,msg);
-         let mut ct_bytes = Vec::new();
-        ct.serialize_compressed(&mut ct_bytes).unwrap();
-        println!("Compressed cipher: {} bytes", ct_bytes.len());
+        let msg_in = agg_key.e_gh.mul(msg);
+        let ct = encrypt::<E>(&agg_key, t, &params);
+        let ct_i = encrypt1(&agg_key, t, &params, msg);
 
-        let mut g1_bytes = Vec::new();
-        let mut g2_bytes = Vec::new();
-        let mut e_gh_bytes = Vec::new();
-
-        let g = G1::generator();
-        let h = G2::generator();
-
-        g.serialize_compressed(&mut g1_bytes).unwrap();
-        h.serialize_compressed(&mut g2_bytes).unwrap();
-        ak.e_gh.serialize_compressed(&mut e_gh_bytes).unwrap();
-
-        println!("G1 len: {} bytes", g1_bytes.len());
-        println!("G2 len: {} bytes", g2_bytes.len());
-        println!("GT len: {} bytes", e_gh_bytes.len());
-        // have to put the parameter of the decrypt function and also have to convert the msg_out from Gt to a scalar field
-        // need to check the partial decryption function
+        // compute partial decryptions
         let mut partial_decryptions: Vec<G2> = Vec::new();
         for i in 0..t + 1 {
-            partial_decryptions.push(sk[i].partial_decryption(&ct_i));
+            partial_decryptions.push(sk[i].partial_decryption(&ct));
         }
-        for _ in t + 1..N {
+        for _ in t + 1..n {
             partial_decryptions.push(G2::zero());
         }
 
@@ -299,14 +281,19 @@ mod tests {
         for _ in 0..t + 1 {
             selector.push(true);
         }
-        for _ in t + 1..N {
+        for _ in t + 1..n {
             selector.push(false);
         }
-        println!("partial_decryptions:{:?}",partial_decryptions);
-        let dec_key = agg_dec(&partial_decryptions, &ct_i, &selector, &ak, &params);
-        // let msg_out = decrypt( &ct, &partial_decryptions, &ct_i,&selector, &ak, &params);
-        // println!("msg_out:{}",msg_out);
 
-
+        let _dec_key = agg_dec(&partial_decryptions, &ct, &selector, &agg_key, &params);
+        let msg_out = decrypt(
+            &ct_i,
+            &partial_decryptions,
+            &ct,
+            &selector,
+            &agg_key,
+            &params,
+        );
+        assert_eq!(msg_out, msg_in);
     }
 }
