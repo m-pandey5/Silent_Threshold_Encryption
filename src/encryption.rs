@@ -46,7 +46,7 @@ pub fn encrypt<E: Pairing>(
     // let mut rng = thread_rng();// fail because different random value for each call
     let mut rng = ark_std::test_rng();
     let gamma = E::ScalarField::rand(&mut rng);
-    println!("GAMMA OF CIPHERTEXT: {}", gamma);
+   
     let gamma_g2 = params.powers_of_h[0] * gamma;
 
     let g = params.powers_of_g[0];
@@ -59,8 +59,7 @@ pub fn encrypt<E: Pairing>(
 
     s.iter_mut()
         .for_each(|s| *s = E::ScalarField::rand(&mut rng));
-    for i in 0..s.len(){
-    println!("s of ciphertext {}", s[i]);}
+   
 
     // sa1[0] = s0*ask->C + s3*g^{tau^{t+1}} + s4*g// is it t or t+1
     sa1[0] = (apk.ask * s[0]) + (params.powers_of_g[t + 1] * s[3]) + (params.powers_of_g[0] * s[4]);
@@ -143,7 +142,7 @@ pub fn encrypt1<E: Pairing>(
 ) -> cipher<E> {
     let mut rng = ark_std::test_rng();
     let gamma = E::ScalarField::rand(&mut rng);
-    println!("GAMMA OF CIPHER: {}", gamma);
+    
     let gamma_g2 = params.powers_of_h[0] * gamma;
 
     let g = params.powers_of_g[0];
@@ -156,8 +155,7 @@ pub fn encrypt1<E: Pairing>(
 
     s.iter_mut()
         .for_each(|s| *s = E::ScalarField::rand(&mut rng));
-    for i in 0..s.len(){
-        println!("s of cipher {}", s[i]);}
+   
 
     // sa1[0] = s0*ask + s3*g^{tau^{t+1}} + s4*g// todo is there t or t+1
     sa1[0] = (apk.ask * s[0]) + (params.powers_of_g[t + 1] * s[3]) + (params.powers_of_g[0] * s[4]);
@@ -188,7 +186,7 @@ pub fn encrypt1<E: Pairing>(
     //converting the msg into Gt element
     let msg_out = apk.e_gh.mul(msg);
     let ct3 = enc_key + msg_out;
-    println!("msg_out:{}", msg_out);
+    
     cipher {
         gamma_g2,
         sa1,
