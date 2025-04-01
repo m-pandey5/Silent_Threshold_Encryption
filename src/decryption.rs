@@ -10,10 +10,10 @@ use ark_std::{One, Zero};
 use std::ops::Div;
 
 use crate::{
-    encryption::{cipher, Ciphertext},
+    encryption::cipher,
     kzg::{PowersOfTau, KZG10},
     setup::AggregateKey,
-    utils::{interp_mostly_zero,hash_to_bytes,xor},
+    utils::{hash_to_bytes, interp_mostly_zero, xor},
 };
 //change that function to add cipher in place of ciphertext
 pub fn agg_dec<E: Pairing>(
@@ -150,12 +150,12 @@ pub fn agg_dec<E: Pairing>(
     enc_key
 }
 pub fn decrypt<E: Pairing>(
-ct_i: &cipher<E>,// s and gamma diffaq
+    ct_i: &cipher<E>,              // s and gamma diffaq
     partial_decryptions: &[E::G2], //insert 0 if a party did not respond or verification failed
     selector: &[bool],
     agg_key: &AggregateKey<E>,
     params: &PowersOfTau<E>,
-) ->[u8;32] {
+) -> [u8; 32] {
     let enc_key = agg_dec(partial_decryptions, ct_i, selector, agg_key, params);
     // let msg_out = ct_i.ct3 - enc_key;
     let hmask = hash_to_bytes(enc_key);
@@ -167,7 +167,7 @@ ct_i: &cipher<E>,// s and gamma diffaq
 mod tests {
     use super::*;
     use crate::{
-        encryption::{encrypt, encrypt1},
+        encryption::encrypt1,
         kzg::KZG10,
         setup::{PublicKey, SecretKey},
     };
@@ -203,10 +203,10 @@ mod tests {
         }
 
         let agg_key = AggregateKey::<E>::new(pk, &params);
-        let ct = encrypt::<E>(&agg_key, t, &params);
-        let msg = [1u8;32];
-        
-        let ct_i=encrypt1::<E>(&agg_key, t, &params,msg);
+        // let ct = encrypt::<E>(&agg_key, t, &params);
+        let msg = [1u8; 32];
+
+        let ct_i = encrypt1::<E>(&agg_key, t, &params, msg);
 
         // compute partial decryptions
         let mut partial_decryptions: Vec<G2> = Vec::new();

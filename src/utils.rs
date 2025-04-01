@@ -4,9 +4,9 @@ use ark_poly::{
     Radix2EvaluationDomain,
 };
 use ark_serialize::CanonicalSerialize;
-use ark_std::{One, Zero};
-use merlin::Transcript;
-use std::ops::Div;
+// use ark_std::{One, Zero};
+// use merlin::Transcript;
+// use std::ops::Div;
 
 pub fn hash_to_bytes<T: CanonicalSerialize>(inp: T) -> [u8; 32] {
     let mut bytes = Vec::new();
@@ -20,7 +20,6 @@ pub fn xor(a: &[u8], b: &[u8]) -> Vec<u8> {
     assert_eq!(a.len(), b.len());
     a.iter().zip(b.iter()).map(|(x, y)| x ^ y).collect()
 }
-
 
 // 1 at omega^i and 0 elsewhere on domain {omega^i}_{i \in [n]}
 pub fn lagrange_poly<F: FftField>(n: usize, i: usize) -> DensePolynomial<F> {

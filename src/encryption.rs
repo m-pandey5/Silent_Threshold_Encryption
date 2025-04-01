@@ -1,7 +1,4 @@
-use std::ops::Mul;
-use rand::thread_rng;
-use ark_std::rand::Rng;
-
+use crate::utils::{hash_to_bytes, xor};
 use crate::{kzg::PowersOfTau, setup::AggregateKey};
 use ark_ec::{
     pairing::{Pairing, PairingOutput},
@@ -9,7 +6,7 @@ use ark_ec::{
 };
 use ark_serialize::*;
 use ark_std::{UniformRand, Zero};
-use crate::utils::{hash_to_bytes, xor};
+use std::ops::Mul;
 
 #[derive(CanonicalSerialize, CanonicalDeserialize, Clone)]
 pub struct Ciphertext<E: Pairing> {
@@ -47,7 +44,7 @@ pub fn encrypt<E: Pairing>(
     // let mut rng = thread_rng();// fail because different random value for each call
     let mut rng = ark_std::test_rng();
     let gamma = E::ScalarField::rand(&mut rng);
-   
+
     let gamma_g2 = params.powers_of_h[0] * gamma;
 
     let g = params.powers_of_g[0];
@@ -60,7 +57,6 @@ pub fn encrypt<E: Pairing>(
 
     s.iter_mut()
         .for_each(|s| *s = E::ScalarField::rand(&mut rng));
-   
 
     // sa1[0] = s0*ask->C + s3*g^{tau^{t+1}} + s4*g// is it t or t+1
     sa1[0] = (apk.ask * s[0]) + (params.powers_of_g[t + 1] * s[3]) + (params.powers_of_g[0] * s[4]);
@@ -106,9 +102,9 @@ pub struct cipher<E: Pairing> {
     // pub enc_key: PairingOutput<E>, //key to be used for encapsulation
     // pub t: usize,
     // pub ct3: PairingOutput<E>,
-   pub ct3: [u8;32],
+    pub ct3: [u8; 32],
     pub enc_key: PairingOutput<E>,
-    pub t: usize //threshold
+    pub t: usize, //threshold
 }
 
 impl<E: Pairing> cipher<E> {
@@ -118,9 +114,9 @@ impl<E: Pairing> cipher<E> {
         sa2: [E::G2; 6],
         // enc_key: PairingOutput<E>,
         // t: usize,
-        ct3: [u8;32],
+        ct3: [u8; 32],
         enc_key: PairingOutput<E>,
-        t: usize //threshold
+        t: usize, //threshold
     ) -> Self {
         cipher {
             gamma_g2,
@@ -128,7 +124,7 @@ impl<E: Pairing> cipher<E> {
             sa2,
             ct3,
             enc_key,
-            t
+            t,
         }
     }
 }
@@ -140,11 +136,11 @@ pub fn encrypt1<E: Pairing>(
     apk: &AggregateKey<E>,
     t: usize,
     params: &PowersOfTau<E>,
-    msg: [u8;32]
+    msg: [u8; 32],
 ) -> cipher<E> {
     let mut rng = ark_std::test_rng();
     let gamma = E::ScalarField::rand(&mut rng);
-    
+
     let gamma_g2 = params.powers_of_h[0] * gamma;
 
     let g = params.powers_of_g[0];
@@ -157,7 +153,6 @@ pub fn encrypt1<E: Pairing>(
 
     s.iter_mut()
         .for_each(|s| *s = E::ScalarField::rand(&mut rng));
-   
 
     // sa1[0] = s0*ask + s3*g^{tau^{t+1}} + s4*g// todo is there t or t+1
     sa1[0] = (apk.ask * s[0]) + (params.powers_of_g[t + 1] * s[3]) + (params.powers_of_g[0] * s[4]);
@@ -188,19 +183,18 @@ pub fn encrypt1<E: Pairing>(
     //converting the msg into Gt element
     // let msg_out = apk.e_gh.mul(msg);
     // let ct3 = enc_key + msg_out;
-//     let msg_bytes = msg.into_bigint().to_bytes_le();
-let hmask = hash_to_bytes(enc_key); 
-   // xor msg and hmask
-   let ct3: [u8; 32] = xor(&msg, &hmask).as_slice().try_into().unwrap();
+    //     let msg_bytes = msg.into_bigint().to_bytes_le();
+    let hmask = hash_to_bytes(enc_key);
+    // xor msg and hmask
+    let ct3: [u8; 32] = xor(&msg, &hmask).as_slice().try_into().unwrap();
 
-    
     cipher {
         gamma_g2,
         sa1,
         sa2,
         ct3,
         enc_key,
-        t
+        t,
     }
 }
 
@@ -286,7 +280,7 @@ mod tests {
         // let msg_in = agg_key.e_gh.mul(msg);
         let number: u64 = 7368807;
         let mut msg = [0u8; 32]; // Initialize a 32-byte array with zeros
-        
+
         // Convert the number to bytes (8 bytes for u64) and store it in the beginning of msg
         let number_bytes = number.to_le_bytes(); // Little-endian format
         msg[..8].copy_from_slice(&number_bytes); // Copy the 8-byte representation
@@ -313,15 +307,9 @@ mod tests {
         }
 
         let _dec_key = agg_dec(&partial_decryptions, &ct_i, &selector, &agg_key, &params);
-        let msg_out = decrypt(
-            &ct_i,
-            &partial_decryptions,
-            &selector,
-            &agg_key,
-            &params,
-        );
+        let msg_out = decrypt(&ct_i, &partial_decryptions, &selector, &agg_key, &params);
         let extracted_bytes = &msg_out[..8];
-let number = u64::from_le_bytes(extracted_bytes.try_into().unwrap());
+        let number = u64::from_le_bytes(extracted_bytes.try_into().unwrap());
         assert_eq!(msg_out, msg);
         println!("number {:?}", number);
         println!("msg_out {:?}", msg_out);
