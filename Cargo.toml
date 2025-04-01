@@ -12,6 +12,8 @@ ark-poly = { version = "0.5.0" }
 ark-bls12-381 = { version = "0.5.0" }
 ark-serialize = { version = "0.5.0" }
 rand = { version = "0.8.4" }
+merlin = { version = "3.0", default-features = false }
+blake3 = { version = "1.0", default-features = false }
 
 [features]
 asm = ["ark-ff/asm"]

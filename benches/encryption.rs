@@ -28,7 +28,7 @@ fn bench_encrypt(c: &mut Criterion) {
     }
 
     let ak = AggregateKey::<E>::new(pk, &params);
-    let msg = Fr::rand(&mut rng);
+    let msg = [1u8;32];
 
     c.bench_function("encrypt", |b| b.iter(|| encrypt1::<E>(&ak, t, &params,msg)));
 }

@@ -13,7 +13,7 @@ use crate::{
     encryption::{cipher, Ciphertext},
     kzg::{PowersOfTau, KZG10},
     setup::AggregateKey,
-    utils::interp_mostly_zero,
+    utils::{interp_mostly_zero,hash_to_bytes,xor},
 };
 //change that function to add cipher in place of ciphertext
 pub fn agg_dec<E: Pairing>(
@@ -155,9 +155,11 @@ ct_i: &cipher<E>,// s and gamma diffaq
     selector: &[bool],
     agg_key: &AggregateKey<E>,
     params: &PowersOfTau<E>,
-) -> PairingOutput<E> {
+) ->[u8;32] {
     let enc_key = agg_dec(partial_decryptions, ct_i, selector, agg_key, params);
-    let msg_out = ct_i.ct3 - enc_key;
+    // let msg_out = ct_i.ct3 - enc_key;
+    let hmask = hash_to_bytes(enc_key);
+    let msg_out = xor(&ct_i.ct3, &hmask).as_slice().try_into().unwrap();
     msg_out
 }
 
@@ -202,7 +204,7 @@ mod tests {
 
         let agg_key = AggregateKey::<E>::new(pk, &params);
         let ct = encrypt::<E>(&agg_key, t, &params);
-        let msg = Fr::rand(&mut rng);
+        let msg = [1u8;32];
         
         let ct_i=encrypt1::<E>(&agg_key, t, &params,msg);
 

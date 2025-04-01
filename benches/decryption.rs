@@ -41,7 +41,7 @@ fn bench_decrypt(c: &mut Criterion) {
 
         let agg_key = AggregateKey::<E>::new(pk, &params);
         let ct = encrypt::<E>(&agg_key, t, &params);
-        let msg = Fr::rand(&mut rng);
+        let msg = [0u8;32];
         
         let ct_i=encrypt1::<E>(&agg_key, t, &params,msg);
 

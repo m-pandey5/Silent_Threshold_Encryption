@@ -9,6 +9,7 @@ use ark_ec::{
 };
 use ark_serialize::*;
 use ark_std::{UniformRand, Zero};
+use crate::utils::{hash_to_bytes, xor};
 
 #[derive(CanonicalSerialize, CanonicalDeserialize, Clone)]
 pub struct Ciphertext<E: Pairing> {
@@ -104,7 +105,8 @@ pub struct cipher<E: Pairing> {
     pub sa2: [E::G2; 6],
     // pub enc_key: PairingOutput<E>, //key to be used for encapsulation
     // pub t: usize,
-    pub ct3: PairingOutput<E>,
+    // pub ct3: PairingOutput<E>,
+   pub ct3: [u8;32],
     pub enc_key: PairingOutput<E>,
     pub t: usize //threshold
 }
@@ -116,7 +118,7 @@ impl<E: Pairing> cipher<E> {
         sa2: [E::G2; 6],
         // enc_key: PairingOutput<E>,
         // t: usize,
-        ct3: PairingOutput<E>,
+        ct3: [u8;32],
         enc_key: PairingOutput<E>,
         t: usize //threshold
     ) -> Self {
@@ -138,7 +140,7 @@ pub fn encrypt1<E: Pairing>(
     apk: &AggregateKey<E>,
     t: usize,
     params: &PowersOfTau<E>,
-    msg: E::ScalarField,
+    msg: [u8;32]
 ) -> cipher<E> {
     let mut rng = ark_std::test_rng();
     let gamma = E::ScalarField::rand(&mut rng);
@@ -184,8 +186,13 @@ pub fn encrypt1<E: Pairing>(
     // enc_key = s4*e_gh CT3= S.B+MSG -> S4+MSG
     let enc_key = apk.e_gh.mul(s[4]);
     //converting the msg into Gt element
-    let msg_out = apk.e_gh.mul(msg);
-    let ct3 = enc_key + msg_out;
+    // let msg_out = apk.e_gh.mul(msg);
+    // let ct3 = enc_key + msg_out;
+//     let msg_bytes = msg.into_bigint().to_bytes_le();
+let hmask = hash_to_bytes(enc_key); 
+   // xor msg and hmask
+   let ct3: [u8; 32] = xor(&msg, &hmask).as_slice().try_into().unwrap();
+
     
     cipher {
         gamma_g2,
@@ -275,8 +282,15 @@ mod tests {
         }
 
         let agg_key = AggregateKey::<E>::new(pk, &params);
-        let msg = Fr::rand(&mut rng);
-        let msg_in = agg_key.e_gh.mul(msg);
+        // let msg = Fr::rand(&mut rng);
+        // let msg_in = agg_key.e_gh.mul(msg);
+        let number: u64 = 7368807;
+        let mut msg = [0u8; 32]; // Initialize a 32-byte array with zeros
+        
+        // Convert the number to bytes (8 bytes for u64) and store it in the beginning of msg
+        let number_bytes = number.to_le_bytes(); // Little-endian format
+        msg[..8].copy_from_slice(&number_bytes); // Copy the 8-byte representation
+        println!("msg {:?}", msg);
         // let ct = encrypt::<E>(&agg_key, t, &params);
         let ct_i = encrypt1(&agg_key, t, &params, msg);
 
@@ -306,6 +320,10 @@ mod tests {
             &agg_key,
             &params,
         );
-        assert_eq!(msg_out, msg_in);
+        let extracted_bytes = &msg_out[..8];
+let number = u64::from_le_bytes(extracted_bytes.try_into().unwrap());
+        assert_eq!(msg_out, msg);
+        println!("number {:?}", number);
+        println!("msg_out {:?}", msg_out);
     }
 }

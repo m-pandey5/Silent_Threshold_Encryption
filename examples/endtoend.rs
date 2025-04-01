@@ -54,7 +54,7 @@ fn main() {
     let signers = (1..n).choose_multiple(&mut rng, t);
 
     let mut selector: Vec<bool> = vec![false; n];
-    let msg = Fr::rand(&mut rng);
+    let msg = [1u8;32];
         
     let ct_i = encrypt1::<E>(&agg_key, t, &kzg_params,msg);
     let mut partial_decryptions: Vec<G2> = vec![G2::zero(); n];
